@@ -46,6 +46,14 @@
 
 #pragma mark - Hacking KVC
 
++ (BOOL)isFdCollapsibleSwizzlingFinished {
+    return [objc_getAssociatedObject(self, _cmd) boolValue];
+}
+
++ (void)setFdCollapsibleSwizzlingFinished: (BOOL)isLoaded {
+    objc_setAssociatedObject(self, @selector(isFdCollapsibleSwizzlingFinished), @(isLoaded), OBJC_ASSOCIATION_RETAIN);
+}
+
 + (void)load
 {
     // Swizzle setValue:forKey: to intercept assignments to `fd_collapsibleConstraints`
@@ -57,7 +65,7 @@
     Class class = UIView.class;
     Method originalMethod = class_getInstanceMethod(class, originalSelector);
     Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
-    
+
     method_exchangeImplementations(originalMethod, swizzledMethod);
 }
 
@@ -77,21 +85,22 @@
 
 - (void)setFd_collapsed:(BOOL)collapsed
 {
-    [self.fd_collapsibleConstraints enumerateObjectsUsingBlock:
-     ^(NSLayoutConstraint *constraint, NSUInteger idx, BOOL *stop) {
-         if (collapsed) {
-             constraint.constant = 0;
-         } else {
-             constraint.constant = constraint.fd_originalConstant;
-         } 
-     }];
-
-    objc_setAssociatedObject(self, @selector(fd_collapsed), @(collapsed), OBJC_ASSOCIATION_RETAIN);
+    if (self.fd_collapsed != collapsed) {
+        objc_setAssociatedObject(self, @selector(fd_collapsed), @(collapsed), OBJC_ASSOCIATION_RETAIN);
+        if ([self.class isFdCollapsibleSwizzlingFinished]) {
+            [self setNeedsUpdateConstraints];
+        }
+    }
 }
 
 - (BOOL)fd_collapsed
 {
     return [objc_getAssociatedObject(self, _cmd) boolValue];
+}
+
+- (void)setCollapsed:(BOOL)collapsed
+{
+    self.fd_collapsed = collapsed;
 }
 
 - (NSMutableArray *)fd_collapsibleConstraints
@@ -108,7 +117,7 @@
 {
     // Hook assignments to our custom `fd_collapsibleConstraints` property.
     NSMutableArray *constraints = (NSMutableArray *)self.fd_collapsibleConstraints;
-    
+
     [fd_collapsibleConstraints enumerateObjectsUsingBlock:^(NSLayoutConstraint *constraint, NSUInteger idx, BOOL *stop) {
         // Store original constant value
         constraint.fd_originalConstant = constraint.constant;
@@ -127,27 +136,28 @@
     // Swizzle to hack "-updateConstraints" method
     SEL originalSelector = @selector(updateConstraints);
     SEL swizzledSelector = @selector(fd_updateConstraints);
-    
+
     Class class = UIView.class;
     Method originalMethod = class_getInstanceMethod(class, originalSelector);
     Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
-    
+
     method_exchangeImplementations(originalMethod, swizzledMethod);
+    [self setFdCollapsibleSwizzlingFinished: YES];
 }
 
 - (void)fd_updateConstraints
 {
     // Call primary method's implementation
     [self fd_updateConstraints];
- 
+
     if (self.fd_autoCollapse && self.fd_collapsibleConstraints.count > 0) {
-        
+
         // "Absent" means this view doesn't have an intrinsic content size, {-1, -1} actually.
         const CGSize absentIntrinsicContentSize = CGSizeMake(UIViewNoIntrinsicMetric, UIViewNoIntrinsicMetric);
-        
+
         // Calculated intrinsic content size
         const CGSize contentSize = [self intrinsicContentSize];
-        
+
         // When this view doesn't have one, or has no intrinsic content size after calculating,
         // it going to be collapsed.
         if (CGSizeEqualToSize(contentSize, absentIntrinsicContentSize) ||
@@ -157,6 +167,15 @@
             self.fd_collapsed = NO;
         }
     }
+
+    [self.fd_collapsibleConstraints enumerateObjectsUsingBlock:
+     ^(NSLayoutConstraint *constraint, NSUInteger idx, BOOL *stop) {
+         if (self.fd_collapsed) {
+             constraint.constant = 0;
+         } else {
+             constraint.constant = constraint.fd_originalConstant;
+         }
+     }];
 }
 
 #pragma mark - Dynamic Properties
@@ -171,10 +190,9 @@
     objc_setAssociatedObject(self, @selector(fd_autoCollapse), @(autoCollapse), OBJC_ASSOCIATION_RETAIN);
 }
 
-- (void)setAutoCollapse:(BOOL)collapse
+- (void)setAutoCollapse:(BOOL)autoCollapse
 {
-    // Just forwarding
-    self.fd_autoCollapse = collapse;
+    self.fd_autoCollapse = autoCollapse;
 }
 
 @end

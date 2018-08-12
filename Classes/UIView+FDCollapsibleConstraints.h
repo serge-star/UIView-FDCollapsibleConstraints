@@ -44,7 +44,7 @@
 
 /// Assigning this property immediately disables the view's collapsible constraints'
 /// by setting their constants to zero.
-@property (nonatomic, assign) BOOL fd_collapsed;
+@property (nonatomic, assign, getter=fd_collapsed, setter=setFd_collapsed:) IBInspectable BOOL collapsed;
 
 /// Specify constraints to be affected by "fd_collapsed" property by connecting in
 /// Interface Builder.
@@ -62,12 +62,6 @@
 ///  label.text = nil, label.text = @"";
 ///
 /// "NO" by default, you may enable it by codes.
-@property (nonatomic, assign) BOOL fd_autoCollapse;
-
-/// "IBInspectable" property, more friendly to Interface Builder.
-/// You gonna find this attribute in "Attribute Inspector", toggle "On" to enable.
-/// Why not a "fd_" prefix? Xcode Attribute Inspector will clip it like a shit.
-/// You should not assgin this property directly by code, use "fd_autoCollapse" instead.
-@property (nonatomic, assign, getter=fd_autoCollapse) IBInspectable BOOL autoCollapse;
+@property (nonatomic, assign, getter=fd_autoCollapse, setter=setFd_autoCollapse:) IBInspectable BOOL autoCollapse;
 
 @end
