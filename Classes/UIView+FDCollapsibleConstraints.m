@@ -47,11 +47,11 @@
 #pragma mark - Hacking KVC
 
 + (BOOL)isFdCollapsibleSwizzlingFinished {
-    return [objc_getAssociatedObject(self, _cmd) boolValue];
+    return [objc_getAssociatedObject(UIView.class, _cmd) boolValue];
 }
 
 + (void)setFdCollapsibleSwizzlingFinished: (BOOL)isLoaded {
-    objc_setAssociatedObject(self, @selector(isFdCollapsibleSwizzlingFinished), @(isLoaded), OBJC_ASSOCIATION_RETAIN);
+    objc_setAssociatedObject(UIView.class, @selector(isFdCollapsibleSwizzlingFinished), @(isLoaded), OBJC_ASSOCIATION_RETAIN);
 }
 
 + (void)load
